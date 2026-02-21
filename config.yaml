@@ -1,0 +1,16 @@
+data:
+    redshift_max: 0.08
+    sersic_min: 0.5
+    sersic_max: 8.0
+
+classification:
+    sersic_threshold: 2.5
+
+split:
+    test_size: 0.2
+    random_state: 42
+    n_splits_cv: 5
+
+preprocessing:
+    log_transform: true
+    scale_features: true
