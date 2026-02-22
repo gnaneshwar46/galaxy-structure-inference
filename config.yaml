@@ -1,3 +1,7 @@
+paths:
+    raw_data: data/raw_dataset.csv
+    clean_data: data/clean_dataset.csv
+
 data:
     redshift_max: 0.08
     sersic_min: 0.5
