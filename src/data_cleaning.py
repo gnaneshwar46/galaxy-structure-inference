@@ -1,120 +1,114 @@
 """
 data_cleaning.py
 
-Responsible for:
-- Loading raw data
-- Basic sanity filtering
-- Missing value handling
-- Log-scaling
-- Saving cleaned dataset
-
-This module must not:
-- Perform model training
-- Perform train/test splitting
-- Contain hard-coded thresholds
+Loads NSA FITS file and prepares cleaned dataset for
+controlled structural classification study.
 """
+
 import os
 import logging
 import yaml
 import pandas as pd
 import numpy as np
+from astropy.io import fits
 
-# ----------------------------------------------------
-# Logging Configuration
-# ----------------------------------------------------
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"        
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# ------------------------------------------------------
-# Utility Functions
-# ------------------------------------------------------
 
 def load_config(config_path: str) -> dict:
-    """Load YAML configuration file."""
     with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
+        return yaml.safe_load(f)
 
-def load_data(data_path: str) -> pd.DataFrame:
-    """Load dataset."""
-    logging.info(f"Loading data from {data_path}")
-    return pd.read_csv(data_path)
 
-def basic_filtering(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Apply basic physical cuts.
-    Example: remove negative masses or extreme redshift.
-    """
-    data_cfg = config.get("data", {})
+def load_fits_data(fits_path: str) -> pd.DataFrame:
+    logging.info(f"Loading FITS file from {fits_path}")
 
-    if "redshift_max" in data_cfg:
-        df = df[df["redshift"] <= data_cfg["redshift_max"]]
+    with fits.open(fits_path, memmap=False) as hdul:
+        data = hdul[1].data
 
-    if "sersic_min" in data_cfg:
-        df = df[df["sersic_n"] >= data_cfg["sersic_min"]]
-    
-    if "sersic_max" in data_cfg:
-        df = df[df["sersic_n"] <= delattr["sersic_max"]]
+        # Convert FITS_rec to numpy structured array
+        data = np.array(data)
 
-    logging.info("Applied astrophysical fitlers.")
+        # Fix endian using dtype trick (NumPy 2.0 safe)
+        data = data.astype(data.dtype.newbyteorder('='))
+
+    df = pd.DataFrame({
+        "redshift": data["Z"],
+        "sersic_n": data["SERSIC_N"],
+        "stellar_mass": data["SERSIC_MASS"],
+        "effective_radius": data["SERSIC_TH50"]
+    })
+
+    logging.info(f"Loaded raw shape: {df.shape}")
     return df
 
-def handle_missing_values(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    strategy = config.get("preprocessing", {}).get("missing_strategy", "drop")
+def apply_filters(df: pd.DataFrame, config: dict) -> pd.DataFrame:
+    data_cfg = config["data"]
 
-    if strategy == "drop":
-        df = df.dropna()
-        logging.info("Dropped missing values.")
-    elif strategy == "median":
-        df = df.fillna(df.median(numeric_only=True))
-        logging.info("Filled missing values with median.")
-    else:
-        raise ValueError("Invalid missing strategy.")
+    initial = len(df)
 
+    # Redshift cut
+    df = df[df["redshift"] <= data_cfg["redshift_max"]]
+    logging.info(f"After redshift cut: {len(df)} (removed {initial - len(df)})")
+    initial = len(df)
+
+    # Sérsic cuts
+    df = df[df["sersic_n"] >= data_cfg["sersic_min"]]
+    logging.info(f"After sersic_min cut: {len(df)} (removed {initial - len(df)})")
+    initial = len(df)
+
+    df = df[df["sersic_n"] <= data_cfg["sersic_max"]]
+    logging.info(f"After sersic_max cut: {len(df)} (removed {initial - len(df)})")
+
+    return df
+
+
+def handle_missing(df: pd.DataFrame) -> pd.DataFrame:
+    before = len(df)
+    df = df.dropna()
+    logging.info(f"After dropping missing: {len(df)} (removed {before - len(df)})")
     return df
 
 
 def log_transform(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Apply log10 transformation to specified columns.
-    """
-    if config.get("preprocessing", {}).get("log_transform", False):
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        df[numeric_cols] = df[numeric_cols].apply(
-            lambda x: np.log10(x) if (x > 0).all() else x
-        )
-        logging.info("Applied log10 transform to numeric columns.")
+    if not config["preprocessing"]["log_transform"]:
+        return df
+
+    for col in ["stellar_mass", "effective_radius"]:
+        before = len(df)
+        df = df[df[col] > 0]
+        removed = before - len(df)
+        df[col] = np.log10(df[col])
+        logging.info(f"Log-transformed {col} (removed {removed})")
 
     return df
 
-def save_cleaned_data(df: pd.DataFrame, output_path: str):
-    """Save cleaned dataset."""
-    os.makedirs(os.path.dirname(output_path), exist_ok = True)
-    df.to_csv(output_path, index = False)
-    logging.info(f"Saved cleaned data to {output_path}")
 
-# ------------------------------------------------------------------
-# Main Execution Function
-# ------------------------------------------------------------------
+def save_clean(df: pd.DataFrame, output_path: str):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, index=False)
+    logging.info(f"Saved cleaned dataset to {output_path}")
+
 
 def run_data_cleaning(config_path: str):
-    """
-    Full cleaning pipeline
-    """
     config = load_config(config_path)
 
-    df = load_data(config["paths"]["raw_data"])
-    logging.info(f"Initial shape: {df.shape}")
+    fits_path = config["paths"]["raw_data"]
+    output_path = config["paths"]["clean_data"]
 
-    df = basic_filtering(df,config)
-    df = handle_missing_values(df, config)
+    df = load_fits_data(fits_path)
+    df = apply_filters(df, config)
+    df = handle_missing(df)
     df = log_transform(df, config)
 
-    logging.info(f"Final shape: {df.shape}")
+    logging.info(f"Final cleaned shape: {df.shape}")
 
-    save_cleaned_data(df, config["paths"]["clean_data"])
+    save_clean(df, output_path)
+
 
 if __name__ == "__main__":
     run_data_cleaning("config.yaml")

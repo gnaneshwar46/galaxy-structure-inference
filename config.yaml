@@ -1,20 +1,25 @@
 paths:
-    raw_data: data/raw_dataset.csv
-    clean_data: data/clean_dataset.csv
+  raw_data: data/raw/nsa.csv
+  clean_data: data/processed/cleaned_nsa.csv
 
 data:
-    redshift_max: 0.08
-    sersic_min: 0.5
-    sersic_max: 8.0
+  redshift_max: 0.08
+  sersic_min: 0.5
+  sersic_max: 8.0
 
 classification:
-    sersic_threshold: 2.5
+  sersic_threshold: 2.5
 
 split:
-    test_size: 0.2
-    random_state: 42
-    n_splits_cv: 5
+  test_size: 0.2
+  random_state: 42
+  n_splits_cv: 5
 
 preprocessing:
-    log_transform: true
-    scale_features: true
+  log_transform: true
+  scale_features: true
+  missing_strategy: drop
+
+paths:
+  raw_data: data/raw/nsa_v1_0_1.fits
+  clean_data: data/processed/cleaned_nsa.csv
