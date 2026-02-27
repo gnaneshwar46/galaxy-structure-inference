@@ -114,9 +114,7 @@ This demonstrates that additional non-linear interactions contribute measureable
 
 Surface stellar mass density was engineered:
 
-\[
-    \log \Sigma_* = \log M_* - 2 \log R_e
-\]
+log(Sigma_*) = log(M_*) - 2 log(R_e)
 
 Adding this feature to the linear model did **not** improve performance, comfirming that compactness alone does not explain the non-linear gain in a purely linear framework.
 
