@@ -105,6 +105,13 @@ def run_data_cleaning(config_path: str):
     df = handle_missing(df)
     df = log_transform(df, config)
 
+    # --------------------------------------------------
+    # Surface Stellar Mass Density (log space)
+    # --------------------------------------------------
+
+    df["surface_density"] = df["stellar_mass"] - 2 * df["effective_radius"]
+    logging.info("Computed surface stellar mass density feature.")
+
     logging.info(f"Final cleaned shape: {df.shape}")
 
     save_clean(df, output_path)

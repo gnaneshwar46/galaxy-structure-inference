@@ -149,7 +149,21 @@ def run_training(config_path: str):
     print(f"Accuracy: {rf_acc:.4f}")
     print(f"Balanced Accuracy: {rf_bal_acc:.4f}")
     print(f"ROC-AUC: {rf_roc:.4f}")
-    
+
+# ------------------------------------------------------------------------
+# Feature Importance (Random Forest)
+# ------------------------------------------------------------------------
+
+    importances = rf_model.feature_importances_
+    feature_names = X_train.columns
+
+    importance_df = pd.DataFrame({
+        "feature": feature_names,
+        "importance": importances,
+    }).sort_values(by= "importance", ascending=False)
+
+    print("\n==== Random Forest Feature Importances ===")
+    print(importance_df)
 
 if __name__ == "__main__":
     run_training("config.yaml")
