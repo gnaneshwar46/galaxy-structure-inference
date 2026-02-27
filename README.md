@@ -94,11 +94,46 @@ This suggests structure is primarily encoded in mass-size scaling, with non-line
 
 ## Current Conclusion
 
-- Structural class is largely linearly separable in mass-size space.
-- Non-linear interactions improve predictive performance.
-- Compactness likely plays a key role in structural emergence.
+### 1. Linear Baseline
 
-This supports the hypothesis that galaxy structure is shaped by multivariate physical interaction rather than a single parameter threshold.
+Logistic regression achieves ROC-AUC ≈ 0.84 using mass, size, and redshift.
+
+This indicates that galaxy structure is largely separable in mass-size space using a linear decision boundary.
+
+----
+
+### 2. Non-Linear Gain
+
+Random Forest improves performance to ROC-AUC ≈ 0.875.
+
+This demonstrates that additional non-linear interactions contribute measureable predictive power beyond simple linear scaling.
+
+----
+
+### 3. Compactness Hypothesis Test
+
+Surface stellar mass density was engineered:
+
+\[
+    \log \Sigma_* = \log M_* - 2 \log R_e
+\]
+
+Adding this feature to the linear model did **not** improve performance, comfirming that compactness alone does not explain the non-linear gain in a purely linear framework.
+
+However, permutation importance analysis revealed that surface density causes the largest ROC-AUC drop when shuffled.
+
+This indicates that compactness is the dominant physical driver, but in a non-linear manner.
+
+----
+
+### Refined Interpretation
+
+- Galaxy structure is strongly encoded in compactness.
+- The dependence is not purely linear.
+- Non-linear coupling between mass and size provides additional explanatory power.
+- Redshift contributes secondary contextual information in the low-redshift regime.
+
+Overall, the results support the hypothesis that galaxy structure emerges from multivariate physical interaction rather than from a single linear parameter threshold.
 
 ## Reproducibility
 

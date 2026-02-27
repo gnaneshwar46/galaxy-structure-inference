@@ -15,6 +15,8 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score, roc_auc_sco
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import make_scorer, roc_auc_score
 import numpy as np
 
 logging.basicConfig(
@@ -107,10 +109,10 @@ def run_training(config_path: str):
 # -----------------------------------------------------------------------------
 
     rf_model = RandomForestClassifier(
-    n_estimators=200,
-    max_depth=None,
-    random_state=config["split"]["random_state"],
-    n_jobs=-1
+        n_estimators=100,
+        max_depth=None,
+        random_state=config["split"]["random_state"],
+        n_jobs=-1
 )
 
     # Cross-validation on training set
@@ -164,6 +166,33 @@ def run_training(config_path: str):
 
     print("\n==== Random Forest Feature Importances ===")
     print(importance_df)
+
+    # ----------------------------------------------------
+    # Permutaion Importance (Test Set)
+    # ----------------------------------------------------
+
+    def roc_auc_from_model(estimator, X, y):
+        y_prob = estimator.predict_proba(X)[:, 1]
+        return roc_auc_score(y, y_prob)
+
+    perm_importance = permutation_importance(
+        rf_model,
+        X_test,
+        y_test,
+        scoring = roc_auc_from_model,
+        n_repeats= 5,
+        random_state = config["split"]["random_state"],
+        n_jobs= -1
+    )
+
+    perm_df = pd.DataFrame({
+        "feature": X_test.columns,
+        "importance_mean": perm_importance.importances_mean,
+        "importance_std": perm_importance.importances_std
+    }).sort_values(by="importance_mean", ascending=False)
+    
+    print("\n=== Permutation Importance (Test ROC-AUC Drop) ===") 
+    print(perm_df)
 
 if __name__ == "__main__":
     run_training("config.yaml")
