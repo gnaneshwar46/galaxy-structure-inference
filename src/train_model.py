@@ -46,6 +46,17 @@ def run_training(config_path: str):
     logging.info(f"Training samples: {X_train.shape[0]}")
     logging.info(f"Testing samples: {X_test.shape[0]}")
 
+    # ---------------------------------------------------------
+    # Compactness-only test
+    # Keep surface_density and redshift
+    # Remove stellar_mass and effective_radius
+    # ---------------------------------------------------------
+
+    X_train = X_train.drop(columns=["stellar_mass", "effective_radius"])
+    X_test = X_test.drop(columns=["stellar_mass", "effective_radius"])
+
+    logging.info("Running compactness-only test (surface_density + redshift).")
+
     # Build pipeline
     model = Pipeline([
         ("scaler", StandardScaler()),
