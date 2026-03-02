@@ -18,6 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import make_scorer, roc_auc_score
 import numpy as np
+import matplotlib.pyplot as plt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,15 +48,15 @@ def run_training(config_path: str):
     logging.info(f"Testing samples: {X_test.shape[0]}")
 
     # ---------------------------------------------------------
-    # Compactness-only test
-    # Keep surface_density and redshift
-    # Remove stellar_mass and effective_radius
+    # Mass-Size geometric model
+    # Keep stellar_mass, effective_radius, redshift
+    # Remove surface_density
     # ---------------------------------------------------------
 
-    X_train = X_train.drop(columns=["stellar_mass", "effective_radius"])
-    X_test = X_test.drop(columns=["stellar_mass", "effective_radius"])
+    X_train = X_train.drop(columns=["surface_density"])
+    X_test = X_test.drop(columns=["surface_density"])
 
-    logging.info("Running compactness-only test (surface_density + redshift).")
+    logging.info("Running mass-size geometric model (M*, Re + z).")
 
     # Build pipeline
     model = Pipeline([
@@ -114,6 +115,121 @@ def run_training(config_path: str):
     print(f"Accuracy: {acc:.4f}")
     print(f"Balanced Accuracy: {bal_acc:.4f}")
     print(f"ROC-AUC: {roc:.4f}")
+
+# ----------------------------------------------------------------------------
+# Logistic Coefficients (Structural Interpretation)
+# ----------------------------------------------------------------------------
+
+    coef = model.named_steps["classifier"].coef_[0]
+    features = X_train.columns
+
+    print("\n=== Logistic Coefficients ===")
+    for f, c in zip(features, coef):
+        print(f"{f}: {c:.6f}")
+
+    # Compute mass-size tradeoff slope
+
+    beta_mass = coef[list(features).index("stellar_mass")]
+    beta_radius = coef[list(features).index("effective_radius")]
+
+    slope = -beta_mass / beta_radius
+    print(f"\nMass-Size Boundary Slope (d logR / d logM): {slope:.4f}")
+
+# -----------------------------------------------------------------------------
+# 2D Mass-Size Probability Surface (Logistic Regression)
+# -----------------------------------------------------------------------------
+
+    # Get trained logistic model
+    log_model = model
+
+    # Define grid range from training data
+    mass_min, mass_max = X_train["stellar_mass"].min(), X_train["stellar_mass"].max()
+    re_min, re_max = X_train["effective_radius"].min(), X_train["effective_radius"].max()
+
+    mass_grid = np.linspace(mass_min, mass_max, 100) 
+    re_grid = np.linspace(re_min, re_max, 100)
+
+    M, R = np.meshgrid(mass_grid, re_grid)
+
+    # Fix redshift at median
+    z_fixed = X_train["redshift"].median()
+
+    # Ensure correct column order from training
+    feature_order = X_train.columns
+
+    grid_df = pd.DataFrame({
+        "stellar_mass": M.ravel(),
+        "effective_radius": R.ravel(),
+        "redshift": z_fixed
+    })
+
+    # Reorder explicitly
+    grid_df = grid_df[feature_order]
+
+    # Predict probability
+    probs = log_model.predict_proba(grid_df)[:, 1]
+    print("Mass range:", X_train["stellar_mass"].min(), X_train["stellar_mass"].max())
+    print("Radius range:", X_train["effective_radius"].min(), X_train["effective_radius"].max())
+    print("Probability range:", probs.min(), probs.max())
+
+    Z = probs.reshape(M.shape)
+
+    # Plot
+    plt.figure(figsize = (8, 6))
+
+    contour = plt.contourf(
+        M,
+        R,
+        Z,
+        levels = np.linspace(0, 1, 20),
+        vmin = 0,
+        vmax = 1
+    )
+
+    plt.xlabel("log Stellar Mass")
+    plt.ylabel("log Effective Radius")
+    plt.title("Morphology Probability Surface (Logistic)")
+    plt.colorbar(contour, label = "P(Early-type)")
+    plt.tight_layout()
+    plt.savefig("figures/mass_size_probability_surface.png", dpi = 300)
+    plt.close()
+
+    logging.info("Saved 2D mass-size probability surface.")
+
+# ----------------------------------------------------------------------------
+# Mass-Size Slope Stability Across CV Folds
+# ----------------------------------------------------------------------------
+
+    print("\n=== Slope Stability Across CV Folds ===")
+
+    slopes = []
+
+    for train_idx, val_idx in cv.split(X_train, y_train):
+        X_tr, X_val = X_train.iloc[train_idx], X_train.iloc[val_idx]
+        y_tr, y_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
+
+        fold_model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("classifier", LogisticRegression(max_iter = 1000))
+        ])
+
+        fold_model.fit(X_tr, y_tr)
+
+        coef_fold = fold_model.named_steps["classifier"].coef_[0]
+        features_fold = X_tr.columns
+
+        beta_mass = coef_fold[list(features_fold).index("stellar_mass")]
+        beta_radius = coef_fold[list(features_fold).index("effective_radius")]
+
+        slope_fold = -beta_mass / beta_radius
+        slopes.append(slope_fold)
+
+        print(f"Fold slope: {slope_fold:.4f}")
+
+    slopes = np.array(slopes)
+
+    print(f"\nMean slope: {slopes.mean():.4f}")
+    print(f"Std slope: {slopes.std():.4f}")
 
 # -----------------------------------------------------------------------------
 # Random Forest (Non-linear comparison)
