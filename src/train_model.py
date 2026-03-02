@@ -333,6 +333,31 @@ def run_training(config_path: str):
 
     logging.info("Saved slope vs redshift figure.")
 
+# ----------------------------------------------------------------------------
+# Regularization Sensitivity Test
+# ----------------------------------------------------------------------------
+
+    print("\n=== Regularization Sensitivity Test ===")
+
+    C_values = [0.1, 1.0, 10.0]
+
+    for C_val in C_values:
+        reg_model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("classifier", LogisticRegression(max_iter = 1000, C = C_val))
+        ])
+
+        reg_model.fit(X_train, y_train)
+
+        coef_reg = reg_model.named_steps["classifier"].coef_[0]
+        features_reg = X_train.columns
+
+        beta_mass = coef_reg[list(features_reg).index("stellar_mass")]
+        beta_radius = coef_reg[list(features_reg).index("effective_radius")]
+
+        slope_reg = -beta_mass / beta_radius
+
+        print(f"C = {C_val:.1f} -> slope = {slope_reg:.4f}")
 
 # -----------------------------------------------------------------------------
 # Random Forest (Non-linear comparison)
