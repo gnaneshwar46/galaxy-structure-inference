@@ -18,15 +18,15 @@ We test this using controlled machine learning experiments on the NASA-Sloan Atl
 ## Dataset
 
 **Source:** NASA-Sloan Atlas (NSA)  
-**Redshift range:** z < 0.08 (conservative structural reliability cut)
+**Redshift range:** $z < 0.08$ (conservative structural reliability cut)
 
 Extracted physical quantities:
 
-- Stellar mass (Sérsic-based)
-- Effective radius (Sérsic half-light radius)
-- Spectroscopic redshift
+- Stellar mass ($M_*$; Sérsic-based)
+- Effective radius ($R_e$; Sérsic half-light radius)
+- Spectroscopic redshift ($z$)
 
-The Sérsic index is used only to define structural class and is removed from the feature set to prevent target leakage.
+The Sérsic index ($n$) is used only to define structural class and is removed from the feature set to prevent target leakage.
 
 ---
 
@@ -46,8 +46,8 @@ The Sérsic index is used only to define structural class and is removed from th
 
 Binary label defined as:
 
-- Disk-dominated: n < 2.5  
-- Bulge-dominated: n ≥ 2.5  
+- Disk-dominated: $n < 2.5$  
+- Bulge-dominated: $n \ge 2.5$  
 
 Stratified 80/20 train-test split ensures class balance preservation.
 
@@ -57,13 +57,13 @@ Stratified 80/20 train-test split ensures class balance preservation.
 
 **Cross-validated performance (5-fold):**
 
-- ROC-AUC ≈ 0.842 ± 0.001  
-- Balanced Accuracy ≈ 0.789 ± 0.001  
+- ROC-AUC $\approx 0.842 \pm 0.001$  
+- Balanced Accuracy $\approx 0.789 \pm 0.001$  
 
 **Test set:**
 
-- ROC-AUC ≈ 0.840  
-- Balanced Accuracy ≈ 0.787  
+- ROC-AUC $\approx 0.840$  
+- Balanced Accuracy $\approx 0.787$  
 
 This indicates that mass–size scaling captures most structural separation linearly.
 
@@ -73,13 +73,13 @@ This indicates that mass–size scaling captures most structural separation line
 
 **Cross-validated performance:**
 
-- ROC-AUC ≈ 0.880 ± 0.001  
-- Balanced Accuracy ≈ 0.803 ± 0.001  
+- ROC-AUC $\approx 0.880 \pm 0.001$  
+- Balanced Accuracy $\approx 0.803 \pm 0.001$  
 
 **Test set:**
 
-- ROC-AUC ≈ 0.878  
-- Balanced Accuracy ≈ 0.803  
+- ROC-AUC $\approx 0.878$  
+- Balanced Accuracy $\approx 0.803$  
 
 Non-linear modeling provides measurable improvement over the linear baseline, indicating additional structural interactions beyond simple linear scaling.
 
@@ -89,9 +89,9 @@ Non-linear modeling provides measurable improvement over the linear baseline, in
 
 Relative contribution:
 
-- Stellar Mass (~48%)  
-- Effective Radius (~32%)  
-- Redshift (~20%)  
+- Stellar Mass ($\sim 48\%$)  
+- Effective Radius ($\sim 32\%$)  
+- Redshift ($\sim 20\%$)  
 
 This suggests structure is primarily encoded in mass–size scaling, with non-linear interaction contributing additional predictive power.
 
@@ -101,13 +101,15 @@ This suggests structure is primarily encoded in mass–size scaling, with non-li
 
 Surface stellar mass density was engineered:
 
-\[
+$$
 \Sigma_* = \frac{M_*}{R_e^2}
-\]
+$$
 
-\[
+Taking logarithms:
+
+$$
 \log \Sigma_* = \log M_* - 2 \log R_e
-\]
+$$
 
 Adding this feature to the linear model did not improve performance, confirming that compactness alone does not explain the non-linear gain in a purely linear framework.
 
@@ -119,25 +121,39 @@ This indicates that compactness is the dominant physical driver, but its role em
 
 # Mass–Size Geometric Boundary Analysis
 
-To directly interpret the learned structural decision boundary, logistic regression coefficients were extracted and the implied mass–size tradeoff slope was computed:
+To directly interpret the learned structural decision boundary, logistic regression coefficients were extracted and the implied mass–size tradeoff slope was computed.
 
-\[
+The decision boundary in log-space satisfies:
+
+$$
 R_e = -\frac{\beta_M}{\beta_R} M_* + C
-\]
+$$
 
 Empirically:
 
-\[
+$$
 -\frac{\beta_M}{\beta_R} \approx 2.01
-\]
+$$
 
 This implies that the morphology transition approximately satisfies:
 
-\[
+$$
 \log M_* - 2 \log R_e = \text{constant}
-\]
+$$
 
 which corresponds to a stellar surface mass density threshold.
+
+More generally, the boundary can be written as:
+
+$$
+\log M_* - \alpha \log R_e = \text{constant}
+$$
+
+with
+
+$$
+\alpha \approx 2
+$$
 
 ---
 
@@ -145,8 +161,8 @@ which corresponds to a stellar surface mass density threshold.
 
 The geometric boundary was tested extensively:
 
-- Cross-validation slope: 2.008 ± 0.003  
-- Regularization sensitivity (C = 0.1–10): slope stable to four decimal places  
+- Cross-validation slope: $2.008 \pm 0.003$  
+- Regularization sensitivity ($C = 0.1$–$10$): slope stable to four decimal places  
 
 This demonstrates that the mass–size boundary geometry is intrinsic to the data and not a numerical artifact.
 
@@ -158,15 +174,15 @@ To test for cosmic evolution, the sample was divided into three equal-sized reds
 
 Mass–size boundary slopes:
 
-- Low z: ~2.40  
-- Mid z: ~1.79  
-- High z: ~1.59  
+- Low $z$: $\sim 2.40$  
+- Mid $z$: $\sim 1.79$  
+- High $z$: $\sim 1.59$  
 
 A linear fit yields:
 
-\[
+$$
 \frac{d(\text{slope})}{dz} \approx -18.8
-\]
+$$
 
 This indicates that the morphology transition becomes increasingly compactness-regulated toward lower redshift.
 
@@ -211,7 +227,7 @@ Raw data is not version-controlled to keep the repository lightweight.
 This step:
 
 - Loads FITS data  
-- Applies conservative redshift filtering (z < 0.08)  
+- Applies conservative redshift filtering ($z < 0.08$)  
 - Removes non-physical entries  
 - Applies log-transformation to scale quantities  
 - Saves cleaned dataset  
@@ -220,7 +236,7 @@ This step:
 
 This step:
 
-- Creates binary structural label (n threshold = 2.5)  
+- Creates binary structural label ($n$ threshold = 2.5)  
 - Removes Sérsic index from features (leakage prevention)  
 - Performs stratified 80/20 split  
 
