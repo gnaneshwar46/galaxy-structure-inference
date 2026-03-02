@@ -267,6 +267,74 @@ def run_training(config_path: str):
         print(f"Redshift bin {i+1} ({z_min:.4f} - {z_max:.4f}) slope: {slope_bin:.4f}")
         
 # -----------------------------------------------------------------------------
+# Linear Trend of Slope vs Redshift
+# -----------------------------------------------------------------------------
+
+    print("\n=== Linear Trend: Slope vs Redshift ===")
+
+    bin_medians = []
+    bin_slopes = []
+
+    for i in range(3):
+        z_min, z_max = z_bins[i], z_bins[i + 1]
+        mask = (X_train["redshift"] >= z_min) & (X_train["redshift"] <= z_max)
+
+        z_median = X_train.loc[mask, "redshift"].median()
+        bin_medians.append(z_median)
+
+        # recompute slope (reuse stored slope if you prefer)
+
+        X_bin = X_train[mask]
+        y_bin = y_train[mask]
+
+        bin_model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("classifier", LogisticRegression(max_iter = 1000))
+        ])
+        bin_model.fit(X_bin, y_bin)
+
+        coef_bin = bin_model.named_steps["classifier"].coef_[0]
+        features_bin = X_bin.columns
+        
+        beta_mass = coef_bin[list(features_bin).index("stellar_mass")]
+        beta_radius = coef_bin[list(features_bin).index("effective_radius")]
+
+        slope_bin = -beta_mass / beta_radius
+        bin_slopes.append(slope_bin)
+
+    # Fit linear model
+    z_array = np.array(bin_medians)
+    slope_array = np.array(bin_slopes)
+
+    trend_coef = np.polyfit(z_array, slope_array, 1)
+
+    print(f"Slope vs z linear coefficient: {trend_coef[0]:.4f}")
+    print(f"Intercept: {trend_coef[1]:.4f}")
+
+# -----------------------------------------------------------------------------
+# Plot: Slope vs Redshift
+# -----------------------------------------------------------------------------
+
+    plt.figure(figsize = (6, 5))
+    
+    plt.scatter(z_array, slope_array)
+
+    # Plot linear fit
+    z_fit = np.linspace(z_array.min(), z_array.max(), 100)
+    slope_fit = trend_coef[0] * z_fit + trend_coef[1]
+    plt.plot(z_fit, slope_fit)
+
+    plt.xlabel("Redshift")
+    plt.ylabel("Mass-Size Boundary Slope")
+    plt.title("Evolution of Mass-Size Slope with Redshift")
+    plt.tight_layout()
+    plt.savefig("figures/slope_vs_redshift.png", dpi = 300)
+    plt.close()
+
+    logging.info("Saved slope vs redshift figure.")
+
+
+# -----------------------------------------------------------------------------
 # Random Forest (Non-linear comparison)
 # -----------------------------------------------------------------------------
 
