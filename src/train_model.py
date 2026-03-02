@@ -232,6 +232,41 @@ def run_training(config_path: str):
     print(f"Std slope: {slopes.std():.4f}")
 
 # -----------------------------------------------------------------------------
+# Redshift-Binned Mass-Size Slope Test
+# -----------------------------------------------------------------------------
+
+    print("\n=== Redshift-Binned Mass-Size Slopes ===")
+
+    # Create 3 redshift bins (low, mid, high)
+    z_bins = np.quantile(X_train["redshift"], [0.0, 0.33, 0.66, 1.0])
+
+    for i in range(3):
+        z_min, z_max = z_bins[i], z_bins[i+1]
+
+        mask = (X_train["redshift"] >= z_min) & (X_train["redshift"] <= z_max)
+        X_bin = X_train[mask]
+        y_bin = y_train[mask]
+
+        print(f"Redshift bin {i + 1} size: {len(X_bin)}")
+
+        bin_model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("classifier", LogisticRegression(max_iter = 1000))
+        ])
+
+        bin_model.fit(X_bin, y_bin)
+
+        coef_bin = bin_model.named_steps["classifier"].coef_[0]
+        features_bin = X_bin.columns
+
+        beta_mass = coef_bin[list(features_bin).index("stellar_mass")]
+        beta_radius = coef_bin[list(features_bin).index("effective_radius")]
+
+        slope_bin = -beta_mass / beta_radius
+
+        print(f"Redshift bin {i+1} ({z_min:.4f} - {z_max:.4f}) slope: {slope_bin:.4f}")
+        
+# -----------------------------------------------------------------------------
 # Random Forest (Non-linear comparison)
 # -----------------------------------------------------------------------------
 
