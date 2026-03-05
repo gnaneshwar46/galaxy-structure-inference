@@ -14,5 +14,3 @@ data/
 # Jupyter checkpoints
 .ipynb_checkpoints/venv/
 
-# Generated figures
-figures/
